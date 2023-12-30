@@ -1,0 +1,127 @@
+#! /bin/bash
+
+FAV_LIST="$XDG_CONFIG_HOME/mpd/playlists/Favourites.m3u"
+CURRENT="$(mpc -f %file% current)"
+WOFICONFIG="$XDG_CONFIG_HOME/wofi/mpdconfig"
+
+#Begin functions
+#
+showcurrent(){
+
+	notify-send "$(mpc status | head -2)"
+
+}
+
+sortlist(){
+	local tempfile
+	tempfile="$(mktemp)"
+	sort "$FAV_LIST" > "$tempfile"
+	cat "$tempfile" > "$FAV_LIST"
+	rm "$tempfile"
+}
+
+addfavourite(){
+
+#QCURRENT="'$CURRENT'"
+
+#grep -qx -e "$CURRENT" "$FAV_LIST"
+	GCURRENT="$(echo $CURRENT | sed -E 's/([?*.+{|()[\^$])/\\\1/g')"
+
+	if grep -E -qx -e "$GCURRENT" "$FAV_LIST"; then
+		notify-send "Already Favourite"
+		return
+	fi
+
+	echo "$CURRENT" | tee -a "$FAV_LIST" > /dev/null
+	sortlist
+}
+
+rmfavourite(){
+	GCURRENT="$(echo $CURRENT | sed -E 's/([?*.+{|()[\^$])/\\\1/g')"
+
+	if ! grep -E -qx -e "$GCURRENT" "$FAV_LIST"; then
+		notify-send "Already not a favourite"
+		return
+	fi
+
+	SCURRENT="$(echo $CURRENT | sed -E 's/([\/?*.+{|()[\^$])/\\\1/g')"
+	sed -Ei "/^$SCURRENT\$/d" "$FAV_LIST"
+}
+
+
+loadtrack(){
+
+	CHOICE="$(mpc -f "[%position% ] [[[%artist% - ]%title%]|[%file%]]" playlist | wofi -c "$WOFICONFIG")"
+	if [[ $CHOICE == "" ]]; then
+		return
+	fi
+
+	POS="$(echo "$CHOICE" | cut -f 1 -d ' ')"
+	mpc play "$POS"
+}
+
+loadalbum(){
+	CHOICE="$(mpc list album | wofi -c "$WOFICONFIG")"
+
+	if [[ $CHOICE == "" ]]; then
+		return
+	fi
+
+	mpc clear
+	mpc findadd "(album == \"$CHOICE\")"
+	mpc play
+}
+
+loadartist(){
+
+	CHOICE="$(mpc list artist | wofi -c "$WOFICONFIG")"
+
+	if [[ $CHOICE == "" ]]; then
+		return
+	fi
+
+	mpc clear
+	mpc findadd "( artist == \"$CHOICE\")"
+	mpc play
+}
+
+loadplaylist(){
+	CHOICE="$(mpc lsplaylists | wofi -c "$WOFICONFIG")"
+
+	if [[ $CHOICE == "" ]]; then
+		return
+	fi
+
+	mpc clear
+
+	if [[ $CHOICE == "All" ]]; then
+		mpc add /
+	else
+		mpc load "$CHOICE"
+	fi
+
+	mpc play
+}
+
+loadall(){
+	mpc clear
+	mpc add /
+	mpc play
+}
+
+
+# Main execution point
+#
+case "$1" in
+	ldlist)       loadplaylist ;;
+	ldartist)     loadartist   ;;
+	ldalbum)      loadalbum    ;;
+	ldtrack)      loadtrack    ;;
+	addfav)       addfavourite ;;
+	rmfav)        rmfavourite  ;;
+	show)         showcurrent  ;;
+	shuffle)      mpc -q shuffle;;
+	sort)         sortlist     ;;
+	loadall)      loadall      ;;
+	*)                   exit  ;;
+esac
