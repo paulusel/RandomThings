@@ -1,32 +1,46 @@
 #!/bin/bash
 
-echo "Buster Admin Password Resetting Tool"
-echo "Reading volumes ..."
+declare mntpt="/mnt"
+declare samvol=""
+# Read ntfs disk volumes
 readarray -t volumes < <(blkid | grep ntfs | cut -d : -f 1)
 
-declare mntpt="/mnt"
-echo "Processing volumes ..."
-for vol in ${volumes[@]}; do
-	echo "Working on $vol ..."
-	# Remove hivernate chache from ntfs volume 
-	ntfsfix $vol
-	# Attempt mount
-	mount $vol $mntpt || { echo "Mounting $vol failed!"; continue; }
+fail() {
+    echo "$@"
+    exit 1
+}
 
-	#check if SAM file exists
-	[[ -f "${mntpt}/Windows/System32/config/SAM" ]] || { 
-		echo "$vol is not windows partition. Moving on ... ";
-		umount $mntpt;
-		continue; }
+findsam() {
+    local found=1
+    for vol in ${volumes[@]}; do
+        mount -o ro $vol $mntpt &>/dev/null || { echo "Failed to mount ${vol}!"; continue; }
+        [[ -f "${mntpt}/Windows/System32/config/SAM" ]] && found=0
+        umount $mntpt
+        if [[ $found -eq 0 ]]; then
+            samvol=$vol 
+            return 0
+        fi
+    done
+    # No SAM volume
+    return 1
+}
 
-	# We found SAM
-	echo "Found the SAM in volume $vol ..."
-	echo "Resetting admin passwords ..."
-	sampasswd -r -a "${mntpt}/Windows/System32/config/SAM" && echo "Resetting successful!" || echo "Operation failed!"
-	umount $mntpt
-	exit 0
-done
+findsam || fail "Windows volume not found!"
+ntfsfix -d $samvol &>/dev/null
+mount -o remove_hiberfile $samvol $mntpt &>/dev/null
 
-# Can't find a volume with SAM
-echo "Windows volume not found!"
-exit 1
+# We don't need read only filesystem
+if [[ ! -w "${mntpt}/Windows/System32/config/SAM" ]]; then
+       	umount $mntpt
+	# Gonna have to force it. Not good ...
+	mount -t ntfs3 -o force,rw $samvol $mntpt || 
+		fail "Failed to mount ${samvol}! SAM is here: $samvol"
+fi
+
+# The actual reset
+sampasswd -r -a "${mntpt}/Windows/System32/config/SAM" || fail "Reset failed!"
+
+# All done
+umount $mntpt
+echo "Successfully reset!"
+exit 0
