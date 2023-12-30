@@ -1,0 +1,32 @@
+#!/bin/bash
+
+echo "Buster Admin Password Resetting Tool"
+echo "Reading volumes ..."
+readarray -t volumes < <(blkid | grep ntfs | cut -d : -f 1)
+
+declare mntpt="/mnt"
+echo "Processing volumes ..."
+for vol in ${volumes[@]}; do
+	echo "Working on $vol ..."
+	# Remove hivernate chache from ntfs volume 
+	ntfsfix $vol
+	# Attempt mount
+	mount $vol $mntpt || { echo "Mounting $vol failed!"; continue; }
+
+	#check if SAM file exists
+	[[ -f "${mntpt}/Windows/System32/config/SAM" ]] || { 
+		echo "$vol is not windows partition. Moving on ... ";
+		umount $mntpt;
+		continue; }
+
+	# We found SAM
+	echo "Found the SAM in volume $vol ..."
+	echo "Resetting admin passwords ..."
+	sampasswd -r -a "${mntpt}/Windows/System32/config/SAM" && echo "Resetting successful!" || echo "Operation failed!"
+	umount $mntpt
+	exit 0
+done
+
+# Can't find a volume with SAM
+echo "Windows volume not found!"
+exit 1
