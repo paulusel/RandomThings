@@ -3,7 +3,7 @@
 declare mntpt="/mnt"
 declare samvol=""
 # Read ntfs disk volumes
-readarray -t volumes < <(blkid | grep ntfs | cut -d : -f 1)
+readarray -t volumes < <(blkid -t TYPE=ntfs -o device)
 
 fail() {
     echo "$@"
@@ -26,12 +26,13 @@ findsam() {
 }
 
 findsam || fail "Windows volume not found!"
+# Fix and mount
 ntfsfix -d $samvol &>/dev/null
 mount -o remove_hiberfile $samvol $mntpt &>/dev/null
 
-# We don't need read only filesystem
+# We don't need read-only filesystem
 if [[ ! -w "${mntpt}/Windows/System32/config/SAM" ]]; then
-       	umount $mntpt
+    umount $mntpt
 	# Gonna have to force it. Not good ...
 	mount -t ntfs3 -o force,rw $samvol $mntpt || 
 		fail "Failed to mount ${samvol}! SAM is here: $samvol"
