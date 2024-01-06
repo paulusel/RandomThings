@@ -1,15 +1,13 @@
 #! /bin/bash
 
+MUSICDIR="${HOME}/Music"
 FAV_LIST="$XDG_CONFIG_HOME/mpd/playlists/Favourites.m3u"
-CURRENT="$(mpc -f %file% current)"
 WOFICONFIG="$XDG_CONFIG_HOME/wofi/mpdconfig"
 
 #Begin functions
 #
 showcurrent(){
-
 	notify-send "$(mpc status | head -2)"
-
 }
 
 sortlist(){
@@ -21,65 +19,51 @@ sortlist(){
 }
 
 addfavourite(){
-
-#QCURRENT="'$CURRENT'"
-
-#grep -qx -e "$CURRENT" "$FAV_LIST"
+    CURRENT="$(mpc -f %file% current)"
 	GCURRENT="$(echo $CURRENT | sed -E 's/([?*.+{|()[\^$])/\\\1/g')"
-
 	if grep -E -qx -e "$GCURRENT" "$FAV_LIST"; then
 		notify-send "Already Favourite"
 		return
 	fi
-
 	echo "$CURRENT" | tee -a "$FAV_LIST" > /dev/null
 	sortlist
 }
 
 rmfavourite(){
+    CURRENT="$(mpc -f %file% current)"
 	GCURRENT="$(echo $CURRENT | sed -E 's/([?*.+{|()[\^$])/\\\1/g')"
-
 	if ! grep -E -qx -e "$GCURRENT" "$FAV_LIST"; then
 		notify-send "Already not a favourite"
 		return
 	fi
-
 	SCURRENT="$(echo $CURRENT | sed -E 's/([\/?*.+{|()[\^$])/\\\1/g')"
 	sed -Ei "/^$SCURRENT\$/d" "$FAV_LIST"
 }
 
-
 loadtrack(){
-
 	CHOICE="$(mpc -f "[%position% ] [[[%artist% - ]%title%]|[%file%]]" playlist | wofi -c "$WOFICONFIG")"
 	if [[ $CHOICE == "" ]]; then
 		return
 	fi
-
 	POS="$(echo "$CHOICE" | cut -f 1 -d ' ')"
 	mpc play "$POS"
 }
 
 loadalbum(){
 	CHOICE="$(mpc list album | wofi -c "$WOFICONFIG")"
-
 	if [[ $CHOICE == "" ]]; then
 		return
 	fi
-
 	mpc clear
 	mpc findadd "(album == \"$CHOICE\")"
 	mpc play
 }
 
 loadartist(){
-
 	CHOICE="$(mpc list artist | wofi -c "$WOFICONFIG")"
-
 	if [[ $CHOICE == "" ]]; then
 		return
 	fi
-
 	mpc clear
 	mpc findadd "( artist == \"$CHOICE\")"
 	mpc play
@@ -91,16 +75,24 @@ loadplaylist(){
 	if [[ $CHOICE == "" ]]; then
 		return
 	fi
-
 	mpc clear
-
 	if [[ $CHOICE == "All" ]]; then
 		mpc add /
 	else
 		mpc load "$CHOICE"
 	fi
-
 	mpc play
+}
+
+loadfolder(){
+    cd $MUSICDIR
+    CHOICE="$(find . -mindepth 1 -type d | wofi -c "$WOFICONFIG" | sed -E 's/^\.\///')"
+	if [[ $CHOICE == "" ]]; then
+		return
+	fi
+    mpc clear
+    mpc add "$CHOICE"
+    mpc play
 }
 
 loadall(){
@@ -109,19 +101,18 @@ loadall(){
 	mpc play
 }
 
-
 # Main execution point
-#
 case "$1" in
-	ldlist)       loadplaylist ;;
-	ldartist)     loadartist   ;;
-	ldalbum)      loadalbum    ;;
-	ldtrack)      loadtrack    ;;
-	addfav)       addfavourite ;;
-	rmfav)        rmfavourite  ;;
-	show)         showcurrent  ;;
-	shuffle)      mpc -q shuffle;;
-	sort)         sortlist     ;;
-	loadall)      loadall      ;;
-	*)                   exit  ;;
+	ldlist)       loadplaylist      ;;
+	ldartist)     loadartist        ;;
+	ldalbum)      loadalbum         ;;
+	ldtrack)      loadtrack         ;;
+	addfav)       addfavourite      ;;
+	rmfav)        rmfavourite       ;;
+	show)         showcurrent       ;;
+	shuffle)      mpc -q shuffle    ;;
+	sort)         sortlist          ;;
+    loadfolder)   loadfolder        ;;
+	loadall)      loadall           ;;
+	*)            exit              ;;
 esac
