@@ -2,7 +2,7 @@
 
 MUSICDIR="${HOME}/Music"
 FAV_LIST="$XDG_CONFIG_HOME/mpd/playlists/Favourites.m3u"
-WOFICONFIG="$XDG_CONFIG_HOME/wofi/mpdconfig"
+SELECTOR="anyrun --plugins libstdin.so"
 
 #Begin functions
 #
@@ -41,7 +41,7 @@ rmfavourite(){
 }
 
 loadtrack(){
-	CHOICE="$(mpc -f "[%position% ] [[[%artist% - ]%title%]|[%file%]]" playlist | wofi -c "$WOFICONFIG")"
+	CHOICE="$(mpc -f "[%position% ] [[[%artist% - ]%title%]|[%file%]]" playlist | $SELECTOR)"
 	if [[ $CHOICE == "" ]]; then
 		return
 	fi
@@ -50,7 +50,7 @@ loadtrack(){
 }
 
 loadalbum(){
-	CHOICE="$(mpc list album | wofi -c "$WOFICONFIG")"
+	CHOICE="$(mpc list album | $SELECTOR)"
 	if [[ $CHOICE == "" ]]; then
 		return
 	fi
@@ -60,7 +60,7 @@ loadalbum(){
 }
 
 loadartist(){
-	CHOICE="$(mpc list artist | wofi -c "$WOFICONFIG")"
+	CHOICE="$(mpc list artist | $SELECTOR)"
 	if [[ $CHOICE == "" ]]; then
 		return
 	fi
@@ -70,7 +70,7 @@ loadartist(){
 }
 
 loadplaylist(){
-	CHOICE="$(mpc lsplaylists | wofi -c "$WOFICONFIG")"
+	CHOICE="$(mpc lsplaylists | $SELECTOR)"
 
 	if [[ $CHOICE == "" ]]; then
 		return
@@ -86,7 +86,7 @@ loadplaylist(){
 
 loadfolder(){
     cd $MUSICDIR
-    CHOICE="$(find . -mindepth 1 -type d | wofi -c "$WOFICONFIG" | sed -E 's/^\.\///')"
+    CHOICE="$(find . -mindepth 1 -type d | $SELECTOR | sed -E 's/^\.\///')"
 	if [[ $CHOICE == "" ]]; then
 		return
 	fi
@@ -112,7 +112,7 @@ case "$1" in
 	show)         showcurrent       ;;
 	shuffle)      mpc -q shuffle    ;;
 	sort)         sortlist          ;;
-    loadfolder)   loadfolder        ;;
-	loadall)      loadall           ;;
+    ldfolder)     loadfolder        ;;
+	ldall)        loadall           ;;
 	*)            exit              ;;
 esac
