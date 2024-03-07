@@ -1,0 +1,56 @@
+#!/bin/bash
+
+help(){
+    cat <<EOHELP
+    Usage: hotspot [options] [args]
+
+    Options:
+        s|start         start access point
+        q|stop          stop access point
+        l|list          list running access points
+        c|clients       list connected clients to first access point
+        p|print         print ssid, passphrase, etc
+        password [pass] set password and restart if running
+        ssid [ssid]     set ssid and restart if running
+EOHELP
+}
+
+case "$1" in
+    s|start)
+        systemctl start create_ap.service
+        ;;
+    q|stop)
+        systemctl stop create_ap.service
+        ;;
+    l|list) create_ap --list-running
+        ;;
+    c|clients)
+        create_ap --list-clients ap0
+        ;;
+    p|print)
+        cat /etc/create_ap.conf | grep -E "WIFI_IFACE|INTERNET_IFACE|PASSPHRASE|SSID"
+        ;;
+    status)
+        systemctl --lines 100 status create_ap.service
+        ;;
+    password)
+        shift
+        # Set password
+        echo "Setting password to $1"
+        #if running already restart
+        if systemctl -q is-active create_ap.service; then
+            systemct restart create_ap.service
+        fi
+        ;;
+    ssid)
+        shift
+        echo "Setting ssid to $1"
+        #if running already restart
+        if systemctl -q is-active create_ap.service; then
+            systemct restart create_ap.service
+        fi
+        ;;
+    *)
+        help
+        ;;
+esac
