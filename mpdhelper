@@ -2,12 +2,18 @@
 
 MUSICDIR="${HOME}/Music"
 FAV_LIST="$XDG_CONFIG_HOME/mpd/playlists/Favourites.m3u"
-SELECTOR="anyrun --plugins libstdin.so"
 
 #Begin functions
 #
 showcurrent(){
 	notify-send "$(mpc status | head -2)"
+}
+
+selector(){
+    hyprctl dispatch submap &> /dev/null
+    anyrun --plugins libstdin.so
+    # TODO Don't assume submap is mpd, find it out first
+    hyprctl dispatch submap mpd &> /dev/null
 }
 
 sortlist(){
@@ -41,7 +47,7 @@ rmfavourite(){
 }
 
 loadtrack(){
-	CHOICE="$(mpc -f "[%position% ] [[[%artist% - ]%title%]|[%file%]]" playlist | $SELECTOR)"
+	CHOICE="$(mpc -f "[%position% ] [[[%artist% - ]%title%]|[%file%]]" playlist | selector)"
 	if [[ $CHOICE == "" ]]; then
 		return
 	fi
@@ -50,7 +56,7 @@ loadtrack(){
 }
 
 loadalbum(){
-	CHOICE="$(mpc list album | $SELECTOR)"
+	CHOICE="$(mpc list album | selector)"
 	if [[ $CHOICE == "" ]]; then
 		return
 	fi
@@ -60,7 +66,7 @@ loadalbum(){
 }
 
 loadartist(){
-	CHOICE="$(mpc list artist | $SELECTOR)"
+	CHOICE="$(mpc list artist | selector)"
 	if [[ $CHOICE == "" ]]; then
 		return
 	fi
@@ -70,7 +76,7 @@ loadartist(){
 }
 
 loadplaylist(){
-	CHOICE="$(mpc lsplaylists | $SELECTOR)"
+	CHOICE="$(mpc lsplaylists | selector)"
 
 	if [[ $CHOICE == "" ]]; then
 		return
@@ -86,7 +92,7 @@ loadplaylist(){
 
 loadfolder(){
     cd $MUSICDIR
-    CHOICE="$(find . -mindepth 1 -type d | $SELECTOR | sed -E 's/^\.\///')"
+    CHOICE="$(find . -mindepth 1 -type d | selector | sed -E 's/^\.\///')"
 	if [[ $CHOICE == "" ]]; then
 		return
 	fi
